@@ -1,0 +1,51 @@
+---
+- name: Installa pacchetti base su Manjaro
+  hosts: localhost
+  become: true  # Esegui come sudo
+  tasks:
+    - name: Aggiorna il sistema
+      ansible.builtin.command:
+        cmd: "pacman -Syu --noconfirm"
+
+    - name: Installa pacchetti base con pacman
+      ansible.builtin.package:
+        name:
+          - htop
+          - vim
+          - nodejs
+          - npm
+          - git
+          - wget
+          - curl
+          - base-devel  # Necessario per compilare AUR
+        state: present
+
+    - name: Verifica se yay è già installato
+      ansible.builtin.stat:
+        path: /usr/bin/yay
+      register: yay_check
+
+    - name: Installa yay se non presente
+      when: not yay_check.stat.exists
+      block:
+        - name: Clona il repository yay
+          ansible.builtin.git:
+            repo: "https://aur.archlinux.org/yay.git"
+            dest: "/tmp/yay"
+            clone: yes
+            update: yes
+
+        - name: Compila e installa yay
+          ansible.builtin.command:
+            cmd: "makepkg -si --noconfirm"
+          args:
+            chdir: "/tmp/yay"
+
+    - name: Pulizia dei file temporanei
+      ansible.builtin.file:
+        path: "/tmp/yay"
+        state: absent
+
+    - name: Aggiorna pacchetti AUR con yay
+      ansible.builtin.command:
+        cmd: "yay -Syu --noconfirm"
