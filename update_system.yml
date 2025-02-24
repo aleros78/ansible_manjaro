@@ -1,0 +1,13 @@
+
+---
+- name: Aggiornamento pacchetti su Manjaro
+  hosts: localhost
+  become: true  # Usa sudo
+  tasks:
+    - name: Aggiorna pacchetti con pacman
+      ansible.builtin.command:
+        cmd: "pacman -Syu --noconfirm"
+    - name: Aggiorna pacchetti AUR con pamac
+      ansible.builtin.command:
+        cmd: "pamac upgrade --no-confirm"
+
