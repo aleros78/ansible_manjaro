@@ -24,6 +24,36 @@
         name: phpmyadmin
         state: present
 
+    - name: Installare Nginx
+      pacman:
+        name: nginx
+        state: present
+
+    - name: Abilitare e avviare Nginx
+      systemd:
+        name: nginx
+        enabled: yes
+        state: started
+
+    - name: Creare la directory /var/www/ se non esiste
+      file:
+        path: /var/www/
+        state: directory
+        mode: '0755'
+
+    - name: Creare link simbolico per phpMyAdmin in Nginx
+      file:
+        src: /usr/share/webapps/phpMyAdmin
+        dest: /var/www/phpmyadmin
+        state: link
+        force: yes
+
+    - name: Creare la directory per le configurazioni Nginx se non esiste
+      file:
+        path: /etc/nginx/conf.d
+        state: directory
+        mode: '0755'
+
     - name: Configurare phpMyAdmin per essere accessibile solo da localhost
       copy:
         dest: /etc/nginx/conf.d/phpmyadmin.conf
@@ -31,7 +61,7 @@
           server {
               listen 80;
               server_name localhost;
-              root /usr/share/webapps/phpMyAdmin;
+              root /var/www/phpmyadmin;
               index index.php index.html index.htm;
               
               location / {
@@ -51,14 +81,10 @@
                   deny all;
               }
           }
+      notify: Riavvia Nginx
 
-    - name: Creare link simbolico per phpMyAdmin in Nginx
-      file:
-        src: /usr/share/webapps/phpMyAdmin
-        dest: /var/www/phpmyadmin
-        state: link
-
-    - name: Riavviare Nginx per applicare la configurazione
+  handlers:
+    - name: Riavvia Nginx
       systemd:
         name: nginx
         state: restarted
