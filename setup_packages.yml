@@ -1,0 +1,55 @@
+- name: Installazione e aggiornamento pacchetti di sistema
+  hosts: localhost
+  become: yes
+  tasks:
+
+    - name: Aggiornare il sistema
+      pacman:
+        update_cache: yes
+        upgrade: yes
+
+    - name: Installare pacchetti di base
+      pacman:
+        name:
+          - base-devel
+          - git
+          - unzip
+          - wget
+          - curl
+          - nodejs
+          - npm
+          - redis
+        state: present
+
+    - name: Installare PHP e moduli necessari
+      pacman:
+        name:
+          - php
+          - php-gd
+          - php-intl
+          - php-pdo
+          - php-pgsql
+          - php-mbstring
+          - php-zip
+          - php-curl
+          - php-dom
+          - php-bcmath
+          - php-fpm
+        state: present
+
+    - name: Abilitare e avviare PHP-FPM
+      systemd:
+        name: php-fpm
+        enabled: yes
+        state: started
+
+    - name: Installare Composer
+      pacman:
+        name: composer
+        state: present
+
+    - name: Abilitare e avviare Redis
+      systemd:
+        name: redis
+        enabled: yes
+        state: started

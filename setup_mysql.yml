@@ -1,0 +1,64 @@
+- name: Installazione e configurazione MySQL (MariaDB) con phpMyAdmin
+  hosts: localhost
+  become: yes
+  tasks:
+
+    - name: Installare MySQL (MariaDB)
+      pacman:
+        name: mariadb
+        state: present
+
+    - name: Inizializzare il database MySQL
+      command: mariadb-install-db --user=mysql --basedir=/usr --datadir=/var/lib/mysql
+      args:
+        creates: /var/lib/mysql/mysql
+
+    - name: Abilitare e avviare MySQL
+      systemd:
+        name: mariadb
+        enabled: yes
+        state: started
+
+    - name: Installare phpMyAdmin
+      pacman:
+        name: phpmyadmin
+        state: present
+
+    - name: Configurare phpMyAdmin per essere accessibile solo da localhost
+      copy:
+        dest: /etc/nginx/conf.d/phpmyadmin.conf
+        content: |
+          server {
+              listen 80;
+              server_name localhost;
+              root /usr/share/webapps/phpMyAdmin;
+              index index.php index.html index.htm;
+              
+              location / {
+                  allow 127.0.0.1;
+                  deny all;
+                  try_files $uri $uri/ /index.php?$query_string;
+              }
+
+              location ~ \.php$ {
+                  include fastcgi.conf;
+                  fastcgi_pass 127.0.0.1:9000;
+                  fastcgi_index index.php;
+                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+              }
+
+              location ~ /\.ht {
+                  deny all;
+              }
+          }
+
+    - name: Creare link simbolico per phpMyAdmin in Nginx
+      file:
+        src: /usr/share/webapps/phpMyAdmin
+        dest: /var/www/phpmyadmin
+        state: link
+
+    - name: Riavviare Nginx per applicare la configurazione
+      systemd:
+        name: nginx
+        state: restarted

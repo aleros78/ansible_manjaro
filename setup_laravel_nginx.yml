@@ -1,0 +1,126 @@
+- name: Configurazione di Laravel e Nginx
+  hosts: localhost
+  become: yes
+  tasks:
+
+    - name: Installare Nginx
+      pacman:
+        name: nginx
+        state: present
+
+    - name: Configurare Nginx per Laravel
+      copy:
+        dest: /etc/nginx/nginx.conf
+        content: |
+          user http;
+          worker_processes auto;
+          error_log /var/log/nginx/error.log;
+          pid /run/nginx.pid;
+          
+          events {
+              worker_connections 1024;
+          }
+
+          http {
+              include mime.types;
+              default_type application/octet-stream;
+              sendfile on;
+              keepalive_timeout 65;
+              server {
+                  listen 80;
+                  server_name localhost;
+                  root /var/www/laravel/public;
+                  index index.php index.html index.htm;
+                  
+                  location / {
+                      try_files $uri $uri/ /index.php?$query_string;
+                  }
+
+                  location ~ \.php$ {
+                      include fastcgi.conf;
+                      fastcgi_pass 127.0.0.1:9000;
+                      fastcgi_index index.php;
+                      fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                  }
+
+                  location ~ /\.ht {
+                      deny all;
+                  }
+              }
+          }
+
+    - name: Abilitare e avviare Nginx
+      systemd:
+        name: nginx
+        enabled: yes
+        state: started
+
+    - name: Clonare Laravel dal repository ufficiale
+      git:
+        repo: 'https://github.com/laravel/laravel.git'
+        dest: /var/www/laravel
+        version: master
+
+    - name: Impostare i permessi corretti per Laravel
+      file:
+        path: /var/www/laravel
+        owner: http
+        group: http
+        mode: '0755'
+        recurse: yes
+
+    - name: Impostare i permessi per storage e bootstrap/cache
+      file:
+        path: "{{ item }}"
+        owner: http
+        group: http
+        mode: '0775'
+        recurse: yes
+      with_items:
+        - /var/www/laravel/storage
+        - /var/www/laravel/bootstrap/cache
+
+    - name: Installare le dipendenze di Laravel
+      command: composer install
+      args:
+        chdir: /var/www/laravel
+
+    - name: Creare file .env
+      copy:
+        dest: /var/www/laravel/.env
+        content: |
+          APP_NAME=Laravel
+          APP_ENV=local
+          APP_KEY=
+          APP_DEBUG=true
+          APP_URL=http://localhost
+
+          DB_CONNECTION=mysql
+          DB_HOST=127.0.0.1
+          DB_PORT=3306
+          DB_DATABASE=laravel
+          DB_USERNAME=root
+          DB_PASSWORD=
+
+          CACHE_DRIVER=redis
+          SESSION_DRIVER=redis
+
+    - name: Generare l'APP_KEY di Laravel
+      command: php artisan key:generate
+      args:
+        chdir: /var/www/laravel
+
+    - name: Eseguire le migrazioni del database
+      command: php artisan migrate
+      args:
+        chdir: /var/www/laravel
+
+    - name: Installare le dipendenze frontend di Laravel
+      command: npm install
+      args:
+        chdir: /var/www/laravel
+
+    - name: Avviare il server Vite in background
+      shell: "nohup npm run dev > /dev/null 2>&1 &"
+      args:
+        chdir: /var/www/laravel
