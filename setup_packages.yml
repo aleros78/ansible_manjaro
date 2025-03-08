@@ -27,15 +27,16 @@
           - php
           - php-gd
           - php-intl
-          - php-pdo
-          - php-pgsql
-          - php-mbstring
-          - php-zip
-          - php-curl
-          - php-dom
-          - php-bcmath
           - php-fpm
         state: present
+
+    - name: Abilitare l'estensione ZIP in PHP (se necessario)
+      lineinfile:
+        path: /etc/php/php.ini
+        regexp: '^;?extension=zip'
+        line: 'extension=zip'
+        state: present
+      notify: Riavvia PHP-FPM
 
     - name: Abilitare e avviare PHP-FPM
       systemd:
@@ -53,3 +54,9 @@
         name: redis
         enabled: yes
         state: started
+
+  handlers:
+    - name: Riavvia PHP-FPM
+      systemd:
+        name: php-fpm
+        state: restarted
